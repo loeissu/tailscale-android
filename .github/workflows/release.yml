@@ -137,22 +137,42 @@ jobs:
           emulator-options: -no-snapshot -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect
           script: |
             set -e
+            # 1) Set system locale to Simplified Chinese (values-zh-rCN)
             adb shell "cmd locale set-system-locales zh-CN" || adb shell "setprop persist.sys.locale zh-CN" || true
-            sleep 5
-            adb install -r apk/tailscale-android-zh-*.apk
-            adb shell am start -n com.tailscale.ipn/.MainActivity
-            sleep 15
-            adb exec-out screencap -p > welcome.png
-            adb shell input keyevent 4
-            sleep 3
-            adb shell am start -n com.tailscale.ipn/.MainActivity
             sleep 8
+            echo "persist.sys.locale=$(adb shell getprop persist.sys.locale)"
+            echo "current locales=$(adb shell cmd locale get-system-locales || true)"
+            # 2) Dismiss any "System UI isn't responding" ANR from cold boot
+            adb shell input keyevent 4 || true
+            adb shell input keyevent 4 || true
+            sleep 3
+            # 3) Install and cold-start the app under zh-CN
+            adb install -r apk/tailscale-android-zh-*.apk
+            adb shell am force-stop com.tailscale.ipn || true
+            adb shell am start -n com.tailscale.ipn/.MainActivity
+            sleep 30
+            adb exec-out screencap -p > welcome.png
+            # 4) Fresh relaunch for a second screenshot
+            adb shell am force-stop com.tailscale.ipn || true
+            adb shell am start -n com.tailscale.ipn/.MainActivity
+            sleep 25
             adb exec-out screencap -p > relaunch.png
+            # 5) Text-level verification via accessibility dump (definitive)
+            adb shell uiautomator dump /sdcard/ui.xml || true
+            adb pull /sdcard/ui.xml ui.xml || true
+            if grep -q "欢迎\|Tailscale\|开始使用\|登录" ui.xml 2>/dev/null; then
+              echo "ui.xml contains app UI text (see grep hits below)"
+            else
+              echo "warning: no expected UI text found in ui.xml"
+            fi
+            grep -o "text=\"[^\"]*\"" ui.xml 2>/dev/null | sort -u | head -40 || true
             echo "screenshots captured:"
             ls -l *.png
       - name: Upload screenshots
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: screenshots-zh
-          path: "*.png"
+          path: |
+            *.png
+            ui.xml
           if-no-files-found: error
