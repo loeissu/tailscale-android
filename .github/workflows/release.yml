@@ -128,7 +128,7 @@ jobs:
           name: apk
           path: apk
       - name: Run emulator + screenshot
-        uses: reactivecircus/android-emulator-runner@1dcfb11358dee74a28d2f6e7bb8a54c8137d54e4 # v2.36.0
+        uses: reactivecircus/android-emulator-runner@5d6e86df22ab11632167a1a6b0c9ab0dc3469586 # v2.36.0
         with:
           api-level: 34
           arch: x86_64
