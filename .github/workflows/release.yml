@@ -100,25 +100,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          cat > .release-notes.md <<'EOF'
+          Tailscale Android 汉化版 v${VER}（与上游 v${VER} 一致）。
+          - 简体中文：自动生成于 tools/zh_cn.json（见 docs/汉化维护.md）
+          - 签名：社区固定 keystore（覆盖安装链支持，见 docs/版本与签名.md）
+          - 官方版 -> 汉化版 需先卸载官方版
+          - SHA256 见随附 .sha256 文件
+          EOF
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" "$APK.sha256" --clobber --repo "$GITHUB_REPOSITORY"
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "Tailscale Android 汉化版 v${VER}" \
-              --notes "Tailscale Android 汉化版 v${VER}（与上游 v${VER} 一致）。
-
-- 简体中文：自动生成于 tools/zh_cn.json（见 docs/汉化维护.md）
-- 签名：社区固定 keystore（覆盖安装链支持，见 docs/版本与签名.md）
-- 官方版 -> 汉化版 需先卸载官方版
-- SHA256 见随附 .sha256 文件"
+              --title "Tailscale Android 汉化版 v${VER}" --notes-file .release-notes.md
           else
             gh release create "$TAG" "$APK" "$APK.sha256" --repo "$GITHUB_REPOSITORY" \
-              --title "Tailscale Android 汉化版 v${VER}" \
-              --notes "Tailscale Android 汉化版 v${VER}（与上游 v${VER} 一致）。
-
-- 简体中文：自动生成于 tools/zh_cn.json（见 docs/汉化维护.md）
-- 签名：社区固定 keystore（覆盖安装链支持，见 docs/版本与签名.md）
-- 官方版 -> 汉化版 需先卸载官方版
-- SHA256 见随附 .sha256 文件"
+              --title "Tailscale Android 汉化版 v${VER}" --notes-file .release-notes.md
           fi
           echo "release URL: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
 
