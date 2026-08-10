@@ -1,0 +1,27 @@
+name: Zh Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+      - name: Translation check (0 missed required)
+        run: |
+          python tools/apply-zh.py --check
+      - name: Dictionary extract consistency
+        run: |
+          python tools/extract-zh.py && python tools/apply-zh.py --check
+      - name: Retain list / last-release sanity
+        run: |
+          test -s tools/zh-last-release.txt && echo "last-release OK"
+          python -c "import json;json.load(open('tools/retain-list.json'));print('retain-list OK')"

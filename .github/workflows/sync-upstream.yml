@@ -1,0 +1,45 @@
+name: Sync Upstream (zh)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "last-release 更新时机 (A 简单模式 / B 严格模式)"
+        required: true
+        default: "A"
+        type: choice
+        options:
+          - A
+          - B
+  schedule:
+    - cron: "0 4 * * *" # 每日 04:00 UTC 检测上游新 Release
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out fork main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/tailscale/tailscale-android.git
+          git fetch upstream --tags
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+      - name: Run sync
+        id: sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python tools/sync-upstream.py --mode "${{ inputs.mode || 'A' }}"
+      - name: Trigger release note
+        if: steps.sync.outcome == 'success'
+        run: echo "sync done (无新版或已推送并打标签)。Release 由 v*-zh tag 自动触发。"

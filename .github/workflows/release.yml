@@ -1,0 +1,163 @@
+name: Release Zh
+
+on:
+  push:
+    tags:
+      - "v*-zh"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "已存在的 v{版本}-zh 标签，用于手动重建同版本资产"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build + sign + publish
+    runs-on: ubuntu-latest
+    env:
+      NDK_ROOT: /usr/local/lib/android/sdk/ndk/23.1.7779620
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+      - name: Resolve tag & semver
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          VER="${TAG#v}"; VER="${VER%-zh}"
+          case "$VER" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "invalid semver tag: $TAG"; exit 1 ;;
+          esac
+          echo "TAG=$TAG" | tee -a "$GITHUB_ENV"
+          echo "VER=$VER" | tee -a "$GITHUB_ENV"
+      - name: Set up Go
+        uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+        with:
+          go-version-file: go.mod
+      - name: Set up Java 17
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Prepare Android SDK
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platforms;android-36" "build-tools;36.0.0" "ndk;23.1.7779620" "platform-tools" > /dev/null
+      - name: Clean
+        run: make clean
+      - name: Format check (ktfmt)
+        run: make fmt-check
+      - name: Go tests
+        run: make go-test
+      - name: Generate version
+        run: make tailscale.version
+      - name: Build libtailscale AAR
+        run: make android/libs/libtailscale.aar
+      - name: Gradle unit tests
+        run: |
+          cd android && ./gradlew test
+      - name: Build release APK
+        run: |
+          cd android && ./gradlew assembleRelease
+      - name: Sign APK (committed keystore)
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0"
+          UNSIGNED="android/build/outputs/apk/release/android-release-unsigned.apk"
+          APK="tailscale-android-zh-${VER}.apk"
+          PASS=$(grep '^storePassword=' android/keystore.properties | cut -d= -f2)
+          KEYPASS=$(grep '^keyPassword=' android/keystore.properties | cut -d= -f2)
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$UNSIGNED" aligned.apk
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks android/zh-release.jks --ks-pass "pass:${PASS}" \
+            --ks-key-alias tailscale-zh --key-pass "pass:${KEYPASS}" \
+            --out "$APK" aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
+          sha256sum "$APK" > "$APK.sha256"
+          echo "APK=$APK" | tee -a "$GITHUB_ENV"
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: apk
+          path: |
+            tailscale-android-zh-*.apk
+            tailscale-android-zh-*.apk.sha256
+          if-no-files-found: error
+      - name: Publish GitHub Release (idempotent, clobber overwrite)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" "$APK.sha256" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "Tailscale Android 汉化版 v${VER}" \
+              --notes "Tailscale Android 汉化版 v${VER}（与上游 v${VER} 一致）。
+
+- 简体中文：自动生成于 tools/zh_cn.json（见 docs/汉化维护.md）
+- 签名：社区固定 keystore（覆盖安装链支持，见 docs/版本与签名.md）
+- 官方版 -> 汉化版 需先卸载官方版
+- SHA256 见随附 .sha256 文件"
+          else
+            gh release create "$TAG" "$APK" "$APK.sha256" --repo "$GITHUB_REPOSITORY" \
+              --title "Tailscale Android 汉化版 v${VER}" \
+              --notes "Tailscale Android 汉化版 v${VER}（与上游 v${VER} 一致）。
+
+- 简体中文：自动生成于 tools/zh_cn.json（见 docs/汉化维护.md）
+- 签名：社区固定 keystore（覆盖安装链支持，见 docs/版本与签名.md）
+- 官方版 -> 汉化版 需先卸载官方版
+- SHA256 见随附 .sha256 文件"
+          fi
+          echo "release URL: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+
+  screenshot:
+    name: Emulator verification (zh-CN)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: apk
+          path: apk
+      - name: Run emulator + screenshot
+        uses: reactivecircus/android-emulator-runner@1dcfb11358dee74a28d2f6e7bb8a54c8137d54e4 # v2.36.0
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: -no-snapshot -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect
+          script: |
+            set -e
+            adb shell "cmd locale set-system-locales zh-CN" || adb shell "setprop persist.sys.locale zh-CN" || true
+            sleep 5
+            adb install -r apk/tailscale-android-zh-*.apk
+            adb shell am start -n com.tailscale.ipn/.MainActivity
+            sleep 15
+            adb exec-out screencap -p > welcome.png
+            adb shell input keyevent 4
+            sleep 3
+            adb shell am start -n com.tailscale.ipn/.MainActivity
+            sleep 8
+            adb exec-out screencap -p > relaunch.png
+            echo "screenshots captured:"
+            ls -l *.png
+      - name: Upload screenshots
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: screenshots-zh
+          path: "*.png"
+          if-no-files-found: error

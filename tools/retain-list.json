@@ -1,0 +1,20 @@
+{
+  "description": "汉化同步保留清单。同步流程：检出上游 Tag 后，新增文件从 main 直接恢复；与上游共享的文件做 three-way 合并。",
+  "last_synced": "1.102.2-t6cac91817-g8c99ed49d",
+  "added": [
+    "tools",
+    "docs/汉化维护.md",
+    "docs/版本与签名.md",
+    "docs/OFL-NotoSansSC.txt",
+    "android/src/main/res/values-zh-rCN",
+    "android/src/main/res/font",
+    "android/zh-release.jks",
+    "android/keystore.properties",
+    ".github/workflows/sync-upstream.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/zh-check.yml"
+  ],
+  "shared": {
+    "android/src/main/java/com/tailscale/ipn/ui/theme/Theme.kt": "3-way"
+  }
+}
