@@ -22,9 +22,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import com.tailscale.ipn.R
+
+/**
+ * App font family. Noto Sans SC (SIL OFL 1.1) is bundled to guarantee CJK glyph
+ * coverage; glyphs it lacks (emoji, symbols, …) fall back to the system fonts.
+ */
+val AppFontFamily =
+    FontFamily(
+        Font(R.font.noto_sans_sc_regular, weight = FontWeight.Normal),
+        Font(R.font.noto_sans_sc_medium, weight = FontWeight.Medium),
+        Font(R.font.noto_sans_sc_bold, weight = FontWeight.Bold))
 
 @Composable
 fun AppTheme(useDarkTheme: Boolean = isSystemInDarkTheme(), content: @Composable() () -> Unit) {
@@ -37,6 +51,7 @@ fun AppTheme(useDarkTheme: Boolean = isSystemInDarkTheme(), content: @Composable
 
   val typography =
       Typography(
+          defaultFontFamily = AppFontFamily,
           // titleMedium is styled to be slightly larger than bodyMedium for emphasis
           titleMedium =
               MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 26.sp),
