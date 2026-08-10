@@ -132,34 +132,37 @@ jobs:
         with:
           api-level: 34
           arch: x86_64
+          target: google_apis
           profile: pixel_5
           disable-animations: true
-          # Boot with a zh-CN system locale (persist.sys.* can only be set at boot,
-          # not via runtime `setprop`).
-          emulator-options: -no-snapshot -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect -prop persist.sys.locale=zh-CN -prop persist.sys.language=zh -prop persist.sys.country=CN
+          emulator-options: -no-snapshot -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect
           script: |
             set -e
-            echo "locale checks:"
-            echo "persist.sys.locale=$(adb shell getprop persist.sys.locale)"
-            echo "persist.sys.language=$(adb shell getprop persist.sys.language)"
-            echo "persist.sys.country=$(adb shell getprop persist.sys.country)"
+            echo "boot locale before: persist.sys.locale=$(adb shell getprop persist.sys.locale)"
+            # Persist zh-CN locale, then reboot so the framework boots in Simplified Chinese.
+            adb shell settings put system system_locales zh-CN || true
+            adb reboot || true
+            adb wait-for-device
+            adb shell "while [ \"\$(getprop sys.boot_completed)\" != \"1\" ]; do sleep 3; done"
+            echo "locale after reboot: persist.sys.locale=$(adb shell getprop persist.sys.locale) language=$(adb shell getprop persist.sys.language) country=$(adb shell getprop persist.sys.country)"
+            sleep 15
             adb install -r apk/tailscale-android-zh-*.apk
             adb shell am force-stop com.tailscale.ipn || true
             adb shell am start -n com.tailscale.ipn/.MainActivity
-            sleep 30
+            sleep 35
+            python3 -c "import re,subprocess; subprocess.run('adb shell uiautomator dump /sdcard/a.xml',shell=True); x=subprocess.run('adb shell cat /sdcard/a.xml',shell=True,capture_output=True,text=True).stdout; m=re.search(r'text=\"Wait\"[^>]*bounds=\"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]\"',x); print('anr-dialog:'+('found-tapping-wait' if m else 'none')); subprocess.run('adb shell input tap '+str((int(m.group(1))+int(m.group(3)))//2)+' '+str((int(m.group(2))+int(m.group(4)))//2),shell=True) if m else None"
+            sleep 3
             adb exec-out screencap -p > welcome.png
             adb shell am force-stop com.tailscale.ipn || true
             adb shell am start -n com.tailscale.ipn/.MainActivity
             sleep 25
+            python3 -c "import re,subprocess; subprocess.run('adb shell uiautomator dump /sdcard/a.xml',shell=True); x=subprocess.run('adb shell cat /sdcard/a.xml',shell=True,capture_output=True,text=True).stdout; m=re.search(r'text=\"Wait\"[^>]*bounds=\"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]\"',x); print('anr-dialog:'+('found-tapping-wait' if m else 'none')); subprocess.run('adb shell input tap '+str((int(m.group(1))+int(m.group(3)))//2)+' '+str((int(m.group(2))+int(m.group(4)))//2),shell=True) if m else None"
+            sleep 3
             adb exec-out screencap -p > relaunch.png
             adb shell uiautomator dump /sdcard/ui.xml || true
             adb pull /sdcard/ui.xml ui.xml || true
             echo "--- ui.xml text nodes (first 40) ---"
             grep -o 'text="[^"]*"' ui.xml 2>/dev/null | head -40 || true
-            echo "--- Chinese UI text present? ---"
-            grep -c "欢迎" ui.xml || true
-            grep -c "开始使用" ui.xml || true
-            grep -c "登录" ui.xml || true
             ls -l *.png
       - name: Upload screenshots
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
