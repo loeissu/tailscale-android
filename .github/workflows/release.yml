@@ -160,19 +160,26 @@ jobs:
             adb shell am force-stop com.tailscale.ipn || true
             adb shell am start -n com.tailscale.ipn/.MainActivity
             sleep 40
-            python3 tools/emu_ui_tap.py "Wait" || true
-            python3 tools/emu_ui_tap.py "CANCEL" || true
-            python3 tools/emu_ui_tap.py "Close app" || true
+            python3 tools/emu_ui_tap.py "等待" || true
+            python3 tools/emu_ui_tap.py "取消" || true
+            python3 tools/emu_ui_tap.py "确定" || true
+            sleep 5
+            python3 tools/emu_ui_tap.py "等待" || true
+            python3 tools/emu_ui_tap.py "取消" || true
             sleep 3
             adb exec-out screencap -p > welcome.png
             adb shell am force-stop com.tailscale.ipn || true
             adb shell am start -n com.tailscale.ipn/.MainActivity
             sleep 30
-            python3 tools/emu_ui_tap.py "Wait" || true
-            python3 tools/emu_ui_tap.py "CANCEL" || true
-            python3 tools/emu_ui_tap.py "Close app" || true
+            python3 tools/emu_ui_tap.py "等待" || true
+            python3 tools/emu_ui_tap.py "取消" || true
+            python3 tools/emu_ui_tap.py "确定" || true
+            sleep 5
+            python3 tools/emu_ui_tap.py "等待" || true
+            python3 tools/emu_ui_tap.py "取消" || true
             sleep 3
             adb exec-out screencap -p > relaunch.png
+            adb shell uiautomator dump /sdcard/ui.xml || true
             adb shell uiautomator dump /sdcard/ui.xml || true
             adb pull /sdcard/ui.xml ui.xml || true
             echo "--- ui.xml text nodes (first 40) ---"
