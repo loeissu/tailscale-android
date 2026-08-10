@@ -134,39 +134,32 @@ jobs:
           arch: x86_64
           profile: pixel_5
           disable-animations: true
-          emulator-options: -no-snapshot -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect
+          # Boot with a zh-CN system locale (persist.sys.* can only be set at boot,
+          # not via runtime `setprop`).
+          emulator-options: -no-snapshot -no-audio -no-boot-anim -no-window -gpu swiftshader_indirect -prop persist.sys.locale=zh-CN -prop persist.sys.language=zh -prop persist.sys.country=CN
           script: |
             set -e
-            # 1) Set system locale to Simplified Chinese (values-zh-rCN)
-            adb shell "cmd locale set-system-locales zh-CN" || adb shell "setprop persist.sys.locale zh-CN" || true
-            sleep 8
+            echo "locale checks:"
             echo "persist.sys.locale=$(adb shell getprop persist.sys.locale)"
-            echo "current locales=$(adb shell cmd locale get-system-locales || true)"
-            # 2) Dismiss any "System UI isn't responding" ANR from cold boot
-            adb shell input keyevent 4 || true
-            adb shell input keyevent 4 || true
-            sleep 3
-            # 3) Install and cold-start the app under zh-CN
+            echo "persist.sys.language=$(adb shell getprop persist.sys.language)"
+            echo "persist.sys.country=$(adb shell getprop persist.sys.country)"
             adb install -r apk/tailscale-android-zh-*.apk
             adb shell am force-stop com.tailscale.ipn || true
             adb shell am start -n com.tailscale.ipn/.MainActivity
             sleep 30
             adb exec-out screencap -p > welcome.png
-            # 4) Fresh relaunch for a second screenshot
             adb shell am force-stop com.tailscale.ipn || true
             adb shell am start -n com.tailscale.ipn/.MainActivity
             sleep 25
             adb exec-out screencap -p > relaunch.png
-            # 5) Text-level verification via accessibility dump (definitive)
             adb shell uiautomator dump /sdcard/ui.xml || true
             adb pull /sdcard/ui.xml ui.xml || true
-            if grep -q "欢迎\|Tailscale\|开始使用\|登录" ui.xml 2>/dev/null; then
-              echo "ui.xml contains app UI text (see grep hits below)"
-            else
-              echo "warning: no expected UI text found in ui.xml"
-            fi
-            grep -o "text=\"[^\"]*\"" ui.xml 2>/dev/null | sort -u | head -40 || true
-            echo "screenshots captured:"
+            echo "--- ui.xml text nodes (first 40) ---"
+            grep -o 'text="[^"]*"' ui.xml 2>/dev/null | head -40 || true
+            echo "--- Chinese UI text present? ---"
+            grep -c "欢迎" ui.xml || true
+            grep -c "开始使用" ui.xml || true
+            grep -c "登录" ui.xml || true
             ls -l *.png
       - name: Upload screenshots
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
