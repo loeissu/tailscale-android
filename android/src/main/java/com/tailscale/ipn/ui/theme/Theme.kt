@@ -41,6 +41,8 @@ val AppFontFamily =
         Font(R.font.noto_sans_sc_bold, weight = FontWeight.Bold),
     )
 
+private fun TextStyle.withAppFont(): TextStyle = copy(fontFamily = AppFontFamily)
+
 @Composable
 fun AppTheme(useDarkTheme: Boolean = isSystemInDarkTheme(), content: @Composable() () -> Unit) {
   val colors =
@@ -50,15 +52,31 @@ fun AppTheme(useDarkTheme: Boolean = isSystemInDarkTheme(), content: @Composable
         LightColors
       }
 
+  val defaultTypography = Typography()
   val typography =
       Typography(
-          fontFamily = AppFontFamily,
+          // Apply the bundled CJK font family to every Material3 style.
+          displayLarge = defaultTypography.displayLarge.withAppFont(),
+          displayMedium = defaultTypography.displayMedium.withAppFont(),
+          displaySmall = defaultTypography.displaySmall.withAppFont(),
+          headlineLarge = defaultTypography.headlineLarge.withAppFont(),
+          headlineMedium = defaultTypography.headlineMedium.withAppFont(),
+          headlineSmall = defaultTypography.headlineSmall.withAppFont(),
+          titleLarge = defaultTypography.titleLarge.withAppFont(),
           // titleMedium is styled to be slightly larger than bodyMedium for emphasis
           titleMedium =
-              MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 26.sp),
+              defaultTypography.titleMedium.copy(
+                  fontFamily = AppFontFamily, fontSize = 18.sp, lineHeight = 26.sp),
+          titleSmall = defaultTypography.titleSmall.withAppFont(),
+          bodyLarge = defaultTypography.bodyLarge.withAppFont(),
           // bodyMedium is styled to use same line height as titleMedium to ensure even vertical
           // margins in list items.
-          bodyMedium = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+          bodyMedium =
+              defaultTypography.bodyMedium.copy(fontFamily = AppFontFamily, fontSize = 16.sp),
+          bodySmall = defaultTypography.bodySmall.withAppFont(),
+          labelLarge = defaultTypography.labelLarge.withAppFont(),
+          labelMedium = defaultTypography.labelMedium.withAppFont(),
+          labelSmall = defaultTypography.labelSmall.withAppFont(),
       )
 
   // TODO: Migrate to Activity.enableEdgeToEdge
