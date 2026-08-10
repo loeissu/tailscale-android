@@ -52,7 +52,7 @@ fun AppTheme(useDarkTheme: Boolean = isSystemInDarkTheme(), content: @Composable
 
   val typography =
       Typography(
-          defaultFontFamily = AppFontFamily,
+          fontFamily = AppFontFamily,
           // titleMedium is styled to be slightly larger than bodyMedium for emphasis
           titleMedium =
               MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 26.sp),
